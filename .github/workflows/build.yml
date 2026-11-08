@@ -11,16 +11,26 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Unpack uploaded zips
+        run: |
+          ZIPS=$(find . -name "*.zip" -not -path "./.git/*")
+          if [ -n "$ZIPS" ]; then
+            which unzip || (apt-get update && apt-get install -y unzip)
+            mkdir -p unpacked
+            for z in $ZIPS; do
+              echo "Unpacking $z"
+              unzip -o "$z" -d unpacked
+            done
+          fi
+
       - name: Check 3DS libraries
         run: ls $DEVKITPRO/portlibs/3ds/include/mpg123.h $DEVKITPRO/libctru/include/citro2d.h
 
       - name: Build
         run: |
-          echo "Repo files:"
-          find . -not -path "./.git/*" -not -path "./.git" | head -n 50
           MK=$(find . -name Makefile -not -path "./.git/*" | head -n 1)
           if [ -z "$MK" ]; then
-            echo "No Makefile in the repo. Upload Makefile, icon.png and the source folder from the zip."
+            echo "No Makefile found in the repo or in any zip."
             exit 1
           fi
           DIR=$(dirname "$MK")
