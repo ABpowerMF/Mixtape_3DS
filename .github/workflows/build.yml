@@ -15,10 +15,10 @@ jobs:
         run: ls $DEVKITPRO/portlibs/3ds/include/mpg123.h $DEVKITPRO/libctru/include/citro2d.h
 
       - name: Build
-        run: make
+        run: make -C MixtapeDS
 
       - name: Upload MixtapeDS.3dsx
         uses: actions/upload-artifact@v4
         with:
           name: MixtapeDS
-          path: MixtapeDS.3dsx
+          path: MixtapeDS/MixtapeDS.3dsx
