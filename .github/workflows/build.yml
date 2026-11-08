@@ -11,8 +11,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install 3DS libraries
-        run: dkp-pacman -Sy --noconfirm --needed 3ds-dev 3ds-mpg123
+      - name: Check 3DS libraries
+        run: ls $DEVKITPRO/portlibs/3ds/include/mpg123.h $DEVKITPRO/libctru/include/citro2d.h
 
       - name: Build
         run: make
