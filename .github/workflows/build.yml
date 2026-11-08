@@ -1,0 +1,24 @@
+name: Build Mixtape DS
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: devkitpro/devkitarm:latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install 3DS libraries
+        run: dkp-pacman -Sy --noconfirm --needed 3ds-dev 3ds-mpg123
+
+      - name: Build
+        run: make
+
+      - name: Upload MixtapeDS.3dsx
+        uses: actions/upload-artifact@v4
+        with:
+          name: MixtapeDS
+          path: MixtapeDS.3dsx
