@@ -15,10 +15,21 @@ jobs:
         run: ls $DEVKITPRO/portlibs/3ds/include/mpg123.h $DEVKITPRO/libctru/include/citro2d.h
 
       - name: Build
-        run: make -C MixtapeDS
+        run: |
+          echo "Repo files:"
+          find . -not -path "./.git/*" -not -path "./.git" | head -n 50
+          MK=$(find . -name Makefile -not -path "./.git/*" | head -n 1)
+          if [ -z "$MK" ]; then
+            echo "No Makefile in the repo. Upload Makefile, icon.png and the source folder from the zip."
+            exit 1
+          fi
+          DIR=$(dirname "$MK")
+          echo "Building in $DIR"
+          make -C "$DIR"
+          cp "$DIR/MixtapeDS.3dsx" .
 
       - name: Upload MixtapeDS.3dsx
         uses: actions/upload-artifact@v4
         with:
           name: MixtapeDS
-          path: MixtapeDS/MixtapeDS.3dsx
+          path: MixtapeDS.3dsx
