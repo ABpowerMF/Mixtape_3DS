@@ -11,24 +11,33 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Unpack uploaded zips
+      - name: Unpack the newest uploaded zip
         run: |
-          ZIPS=$(find . -name "*.zip" -not -path "./.git/*")
-          if [ -n "$ZIPS" ]; then
+          ZIP=$(find . -name "*.zip" -not -path "./.git/*" | sort -V | tail -n 1)
+          if [ -n "$ZIP" ]; then
             which unzip || (apt-get update && apt-get install -y unzip)
-            mkdir -p unpacked
-            for z in $ZIPS; do
-              echo "Unpacking $z"
-              unzip -o "$z" -d unpacked
-            done
+            rm -rf unpacked && mkdir -p unpacked
+            echo "Unpacking $ZIP"
+            unzip -o "$ZIP" -d unpacked
           fi
 
-      - name: Check 3DS libraries
-        run: ls $DEVKITPRO/portlibs/3ds/include/mpg123.h $DEVKITPRO/libctru/include/citro2d.h
+      - name: Get the .cia tools (makerom + bannertool)
+        run: |
+          which curl unzip || (apt-get update && apt-get install -y curl unzip)
+          mkdir -p /opt/ctr && cd /opt/ctr
+          curl -sL -o makerom.zip https://github.com/3DSGuy/Project_CTR/releases/download/makerom-v0.19.0/makerom-v0.19.0-ubuntu_x86_64.zip
+          curl -sL -o bannertool.zip https://github.com/diasurgical/bannertool/releases/download/1.2.0/bannertool.zip
+          unzip -o makerom.zip && unzip -o bannertool.zip
+          chmod +x makerom linux-x86_64/bannertool
+          echo "/opt/ctr" >> $GITHUB_PATH
+          echo "/opt/ctr/linux-x86_64" >> $GITHUB_PATH
 
       - name: Build
         run: |
-          MK=$(find . -name Makefile -not -path "./.git/*" | head -n 1)
+          MK=$(find . -name Makefile -not -path "./.git/*" | sort | tail -n 1)
+          if [ -n "$(find unpacked -name Makefile 2>/dev/null | head -n 1)" ]; then
+            MK=$(find unpacked -name Makefile | head -n 1)
+          fi
           if [ -z "$MK" ]; then
             echo "No Makefile found in the repo or in any zip."
             exit 1
@@ -37,9 +46,13 @@ jobs:
           echo "Building in $DIR"
           make -C "$DIR"
           cp "$DIR/MixtapeDS.3dsx" .
+          make -C "$DIR" cia && cp "$DIR/MixtapeDS.cia" . || echo "The .cia didn't build; the .3dsx is still fine."
 
-      - name: Upload MixtapeDS.3dsx
+      - name: Upload the app
         uses: actions/upload-artifact@v4
         with:
           name: MixtapeDS
-          path: MixtapeDS.3dsx
+          path: |
+            MixtapeDS.3dsx
+            MixtapeDS.cia
+          if-no-files-found: warn
