@@ -21,17 +21,6 @@ jobs:
             unzip -o "$ZIP" -d unpacked
           fi
 
-      - name: Get the .cia tools (makerom + bannertool)
-        run: |
-          which curl unzip || (apt-get update && apt-get install -y curl unzip)
-          mkdir -p /opt/ctr && cd /opt/ctr
-          curl -sL -o makerom.zip https://github.com/3DSGuy/Project_CTR/releases/download/makerom-v0.19.0/makerom-v0.19.0-ubuntu_x86_64.zip
-          curl -sL -o bannertool.zip https://github.com/diasurgical/bannertool/releases/download/1.2.0/bannertool.zip
-          unzip -o makerom.zip && unzip -o bannertool.zip
-          chmod +x makerom linux-x86_64/bannertool
-          echo "/opt/ctr" >> $GITHUB_PATH
-          echo "/opt/ctr/linux-x86_64" >> $GITHUB_PATH
-
       - name: Build
         run: |
           MK=$(find . -name Makefile -not -path "./.git/*" | sort | tail -n 1)
@@ -45,14 +34,40 @@ jobs:
           DIR=$(dirname "$MK")
           echo "Building in $DIR"
           make -C "$DIR"
-          cp "$DIR/MixtapeDS.3dsx" .
-          make -C "$DIR" cia && cp "$DIR/MixtapeDS.cia" . || echo "The .cia didn't build; the .3dsx is still fine."
+          mkdir -p parts
+          cp "$DIR/MixtapeDS.3dsx" "$DIR/MixtapeDS.elf" "$DIR/cia.rsf" "$DIR/banner.png" "$DIR/banner.wav" "$DIR/icon.png" parts/
+          cp -r "$DIR/romfs" parts/romfs
+
+      - name: Keep the parts for the .cia
+        uses: actions/upload-artifact@v4
+        with:
+          name: parts
+          path: parts
+
+  cia:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: parts
+          path: parts
+
+      - name: Make MixtapeDS.cia
+        run: |
+          cd parts
+          curl -sL -o makerom.zip https://github.com/3DSGuy/Project_CTR/releases/download/makerom-v0.19.0/makerom-v0.19.0-ubuntu_x86_64.zip
+          curl -sL -o bannertool.zip https://github.com/diasurgical/bannertool/releases/download/1.2.0/bannertool.zip
+          unzip -o makerom.zip && unzip -o bannertool.zip
+          chmod +x makerom linux-x86_64/bannertool
+          ./linux-x86_64/bannertool makebanner -i banner.png -a banner.wav -o banner.bnr
+          ./linux-x86_64/bannertool makesmdh -s "Mixtape DS" -l "Pocket MP3 player" -p "Andre" -i icon.png -o icon.smdh
+          ./makerom -f cia -o MixtapeDS.cia -elf MixtapeDS.elf -rsf cia.rsf -icon icon.smdh -banner banner.bnr -exefslogo -target t
 
       - name: Upload the app
         uses: actions/upload-artifact@v4
         with:
           name: MixtapeDS
           path: |
-            MixtapeDS.3dsx
-            MixtapeDS.cia
-          if-no-files-found: warn
+            parts/MixtapeDS.3dsx
+            parts/MixtapeDS.cia
